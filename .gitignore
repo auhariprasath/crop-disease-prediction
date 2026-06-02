@@ -1,0 +1,8 @@
+node_modules/
+reports/
+backend/backend.log
+backend/target/
+backend/.project
+*.pyc
+__pycache__/
+db.sqlite3
