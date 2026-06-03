@@ -1,0 +1,43 @@
+services:
+  - type: web
+    name: crop-disease-backend
+    env: java
+    region: oregon
+    plan: starter
+    buildCommand: cd backend && mvn clean package -DskipTests
+    startCommand: java -jar backend/target/crop-disease-prediction-1.0.0.jar
+    healthCheckPath: /api/health
+    envVars:
+      - key: SERVER_PORT
+        value: 8081
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: DB_URL
+        fromDatabase:
+          name: crop-disease-db
+          property: connectionString
+      - key: DB_USERNAME
+        fromDatabase:
+          name: crop-disease-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: crop-disease-db
+          property: password
+      - key: PYTHON_PATH
+        value: python3
+      - key: MODEL_PATH
+        value: /opt/render/project/src/model.h5
+      - key: REPORTS_DIR
+        value: /opt/render/project/src/reports
+      - key: ALLOWED_ORIGINS
+        value: https://crop-disease-frontend.vercel.app
+      - key: MAX_FILE_SIZE
+        value: 10MB
+
+databases:
+  - name: crop-disease-db
+    region: oregon
+    plan: free
+    databaseName: cropdatabase
+    ipAllowList: []

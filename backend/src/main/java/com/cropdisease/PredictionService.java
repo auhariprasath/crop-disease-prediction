@@ -4,6 +4,7 @@ import com.cropdisease.entity.PredictionEntity;
 import com.cropdisease.repository.PredictionRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -20,6 +21,12 @@ public class PredictionService {
 
     private static final Logger log = LoggerFactory.getLogger(PredictionService.class);
 
+    @Value("${python.path:python3}")
+    private String pythonPath;
+
+    @Value("${scripts.dir:backend/scripts}")
+    private String scriptsDir;
+
     private final PredictionRepository predictionRepository;
 
     public PredictionService(PredictionRepository predictionRepository) {
@@ -31,14 +38,12 @@ public class PredictionService {
         file.transferTo(temp.toFile());
 
         try {
-            String projectRoot = "C:\\Users\\HARIPRASATH\\Desktop\\crop-disease-prediction";
-            String pythonExe = "C:\\Users\\HARIPRASATH\\AppData\\Local\\Programs\\Python\\Python312\\python.exe";
-            String scriptPath = projectRoot + "\\backend\\scripts\\predict.py";
+            String scriptPath = scriptsDir + File.separator + "predict.py";
 
-            log.info("Running: {} {} {}", pythonExe, scriptPath, temp.toAbsolutePath());
+            log.info("Running: {} {} {}", pythonPath, scriptPath, temp.toAbsolutePath());
 
-            ProcessBuilder pb = new ProcessBuilder(pythonExe, scriptPath, temp.toAbsolutePath().toString());
-            pb.directory(new File(projectRoot));
+            ProcessBuilder pb = new ProcessBuilder(pythonPath, scriptPath, temp.toAbsolutePath().toString());
+            pb.directory(new File("."));
 
             Process process = pb.start();
             String output;

@@ -7,3 +7,10 @@ backend/.project
 __pycache__/
 db.sqlite3
 backend/bin/
+backend/.classpath
+backend/.settings/
+.env
+backend/.env
+frontend/.env
+backend/src/main/resources/application-local.properties
+
