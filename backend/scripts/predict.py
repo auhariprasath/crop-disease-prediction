@@ -5,6 +5,9 @@ import json
 import numpy as np
 import cv2
 
+IMG_SIZE = 150
+MODEL_FILENAME = 'plant disease model final.h5'
+
 CLASS_NAMES = [
     'Apple__Apple_scab','Apple_Black_rot','Apple_Cedar_apple_rust','Apple_healthy',
     'Blueberry_healthy','Cherry(including_sour)_Powdery_mildew','Cherry(including_sour)_healthy',
@@ -38,72 +41,29 @@ PLANT_NAMES = {
     'Tomato_Tomato_Yellow_Leaf_Curl_Virus':'Tomato','Tomato_Tomato_mosaic_virus':'Tomato','Tomato__healthy':'Tomato'
 }
 
-DISEASE_INDICES = {
-    'healthy': [3,6,10,14,17,19,22,23,24,27,37],
-    'early_blight': [20,29],
-    'late_blight': [21,30],
-    'bacterial_spot': [16,18,28],
-    'powdery_mildew': [5,25],
-    'leaf_scorch': [26],
-    'black_rot': [1,11],
-    'rust': [8],
-}
-
-def extract_features(img_path):
+def preprocess(img_path):
     img = cv2.imread(img_path)
     if img is None:
-        return None, None
-    img = cv2.resize(img, (224, 224))
-    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    f1 = np.mean(gray)
-    f2 = np.std(gray)
-    f3 = np.mean(hsv[:, :, 0])
-    f4 = np.mean(hsv[:, :, 1])
-    edges = cv2.Canny(gray, 50, 150)
-    f5 = np.sum(edges > 0) / (edges.shape[0] * edges.shape[1])
-    f6 = np.var(img.astype(np.float64))
-    features = np.array([f1, f2, f3, f4, f5, f6], dtype=np.float32)
-    mx = np.max(features)
-    if mx > 0:
-        features = features / mx
-    return features.reshape(1, 6), [f1, f2, f3, f4, f5, f6]
+        return None
+    img = cv2.resize(img, (IMG_SIZE, IMG_SIZE))
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
+    return np.expand_dims(img, axis=0)
 
 def predict(img_path):
-    model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'livestock_disease_model.h5')
+    model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', MODEL_FILENAME)
     model_path = os.path.normpath(model_path)
 
-    features, raw = extract_features(img_path)
-    if features is None:
+    batch = preprocess(img_path)
+    if batch is None:
         return {"status": "error", "message": "Could not read image"}
 
     try:
         from tensorflow.keras.models import load_model
         model = load_model(model_path)
-        pred = model.predict(features, verbose=0)
-        health_score = float(pred[0][0])
+        pred = model.predict(batch, verbose=0)[0]
 
-        mean_b, std_b, mean_h, mean_s, edge_d, color_v = raw
-
-        if health_score < 0.3:
-            idx = 3
-        elif mean_h > 80 and mean_h < 160 and mean_s > 80:
-            if edge_d > 1500:
-                idx = 28
-            else:
-                idx = 37
-        elif mean_h > 20 and mean_h < 40:
-            idx = 20
-        elif mean_b < 100:
-            idx = 21
-        elif mean_s < 60:
-            idx = 1
-        elif edge_d > 2000:
-            idx = 8
-        else:
-            idx = 14
-
-        confidence = min(95.0, max(50.0, (1.0 - abs(health_score - 0.5)) * 100))
+        idx = int(np.argmax(pred))
+        confidence = round(float(pred[idx]) * 100, 2)
         disease = CLASS_NAMES[idx]
         plant = PLANT_NAMES.get(disease, "Unknown")
 
@@ -111,7 +71,7 @@ def predict(img_path):
             "status": "success",
             "disease": disease,
             "crop_name": plant,
-            "confidence": round(confidence, 2)
+            "confidence": confidence
         }
     except Exception as e:
         return {"status": "error", "message": str(e)}
